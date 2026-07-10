@@ -1,2 +1,2 @@
-NAME             STATUS   ROLES           AGE     VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION           CONTAINER-RUNTIME
-ip-172-31-22-0   Ready    control-plane   2m51s   v1.36.2+k3s1   172.31.22.0   <none>        Ubuntu 22.04.5 LTS   6.8.0-1060-aws (amd64)   containerd://2.3.2-k3s2
+NAME             STATUS   ROLES           AGE    VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION           CONTAINER-RUNTIME
+ip-172-31-22-0   Ready    control-plane   3m5s   v1.36.2+k3s1   172.31.22.0   <none>        Ubuntu 22.04.5 LTS   6.8.0-1060-aws (amd64)   containerd://2.3.2-k3s2

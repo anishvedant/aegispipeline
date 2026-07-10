@@ -1,0 +1,25 @@
+Error from server: error when applying patch:
+{"metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"grok-inference\",\"team\":\"research\"},\"name\":\"grok-inference\",\"namespace\":\"model-serving\"},\"spec\":{\"replicas\":1,\"selector\":{\"matchLabels\":{\"app\":\"grok-inference\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"grok-inference\"}},\"spec\":{\"containers\":[{\"image\":\"grok-inference:latest\",\"name\":\"inference\",\"securityContext\":{\"privileged\":true,\"runAsUser\":0},\"volumeMounts\":[{\"mountPath\":\"/weights\",\"name\":\"model-weights\"}]}],\"volumes\":[{\"hostPath\":{\"path\":\"/var/lib/model-checkpoints\"},\"name\":\"model-weights\"}]}}}}\n"}},"spec":{"template":{"spec":{"$setElementOrder/containers":[{"name":"inference"}],"$setElementOrder/volumes":[{"name":"model-weights"}],"containers":[{"$setElementOrder/volumeMounts":[{"mountPath":"/weights"}],"image":"grok-inference:latest","name":"inference","resources":null,"securityContext":{"allowPrivilegeEscalation":null,"capabilities":null,"privileged":true,"runAsNonRoot":null,"runAsUser":0},"volumeMounts":[{"mountPath":"/weights","readOnly":null}]}],"securityContext":null,"volumes":[{"$retainKeys":["hostPath","name"],"emptyDir":null,"hostPath":{"path":"/var/lib/model-checkpoints"},"name":"model-weights"}]}}}}
+to:
+Resource: "apps/v1, Resource=deployments", GroupVersionKind: "apps/v1, Kind=Deployment"
+Name: "grok-inference", Namespace: "model-serving"
+for: "k8s/workloads/insecure/grok-inference.yaml": error when patching "k8s/workloads/insecure/grok-inference.yaml": admission webhook "validate.kyverno.svc-fail" denied the request: 
+
+resource Deployment/model-serving/grok-inference was blocked due to the following policies 
+
+gg-block-hostpath:
+  autogen-block-hostpath-volumes: 'validation error: GrokGuard: hostPath volumes are
+    blocked. Model checkpoints and node filesystems must not be mounted into workloads.
+    rule autogen-block-hostpath-volumes failed at path /spec/template/spec/volumes/0/hostPath/'
+gg-pod-hardening:
+  autogen-deny-privileged: 'validation error: GrokGuard: privileged containers are
+    blocked. rule autogen-deny-privileged failed at path /spec/template/spec/containers/0/securityContext/privileged/'
+  autogen-require-non-root: 'validation error: GrokGuard: containers must set runAsNonRoot:
+    true. rule autogen-require-non-root[0] failed at path /spec/template/spec/securityContext/runAsNonRoot/
+    rule autogen-require-non-root[1] failed at path /spec/template/spec/containers/0/securityContext/runAsNonRoot/'
+gg-supply-chain-and-limits:
+  autogen-block-latest-tag: 'validation error: GrokGuard: image tags must be pinned,
+    '':latest'' is blocked. rule autogen-block-latest-tag failed at path /spec/template/spec/containers/0/image/'
+  autogen-require-resource-limits: 'validation error: GrokGuard: every container must
+    declare CPU and memory limits. rule autogen-require-resource-limits failed at
+    path /spec/template/spec/containers/0/resources/limits/'

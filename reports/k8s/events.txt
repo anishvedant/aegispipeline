@@ -1,15 +1,22 @@
 LAST SEEN   TYPE     REASON              OBJECT                                 MESSAGE
-2s          Normal   Scheduled           pod/grok-inference-56bdbc99b4-7bjxx    Successfully assigned model-serving/grok-inference-56bdbc99b4-7bjxx to ip-172-31-22-0
-59s         Normal   Scheduled           pod/grok-inference-56bdbc99b4-smkw2    Successfully assigned model-serving/grok-inference-56bdbc99b4-smkw2 to ip-172-31-22-0
-60s         Normal   ScalingReplicaSet   deployment/grok-inference              Scaled up replica set grok-inference-56bdbc99b4 from 0 to 1
-59s         Normal   SuccessfulCreate    replicaset/grok-inference-56bdbc99b4   Created pod: grok-inference-56bdbc99b4-smkw2
-58s         Normal   Pulling             pod/grok-inference-56bdbc99b4-smkw2    Pulling image "nginxinc/nginx-unprivileged:1.27.3"
-54s         Normal   Started             pod/grok-inference-56bdbc99b4-smkw2    Container started
-54s         Normal   Pulled              pod/grok-inference-56bdbc99b4-smkw2    Successfully pulled image "nginxinc/nginx-unprivileged:1.27.3" in 3.973s (3.973s including waiting). Image size: 72105943 bytes.
-54s         Normal   Created             pod/grok-inference-56bdbc99b4-smkw2    Container created
-3s          Normal   Killing             pod/grok-inference-56bdbc99b4-smkw2    Stopping container inference
-2s          Normal   Started             pod/grok-inference-56bdbc99b4-7bjxx    Container started
-2s          Normal   Created             pod/grok-inference-56bdbc99b4-7bjxx    Container created
-2s          Normal   SuccessfulCreate    replicaset/grok-inference-56bdbc99b4   Created pod: grok-inference-56bdbc99b4-7bjxx
-2s          Normal   Pulled              pod/grok-inference-56bdbc99b4-7bjxx    Container image "nginxinc/nginx-unprivileged:1.27.3" already present on machine and can be accessed by the pod
+1s          Normal   Scheduled           pod/grok-inference-56bdbc99b4-ctcb4    Successfully assigned model-serving/grok-inference-56bdbc99b4-ctcb4 to ip-172-31-22-0
+16s         Normal   Scheduled           pod/grok-inference-56bdbc99b4-7bjxx    Successfully assigned model-serving/grok-inference-56bdbc99b4-7bjxx to ip-172-31-22-0
+73s         Normal   Scheduled           pod/grok-inference-56bdbc99b4-smkw2    Successfully assigned model-serving/grok-inference-56bdbc99b4-smkw2 to ip-172-31-22-0
+74s         Normal   ScalingReplicaSet   deployment/grok-inference              Scaled up replica set grok-inference-56bdbc99b4 from 0 to 1
+73s         Normal   SuccessfulCreate    replicaset/grok-inference-56bdbc99b4   Created pod: grok-inference-56bdbc99b4-smkw2
+72s         Normal   Pulling             pod/grok-inference-56bdbc99b4-smkw2    Pulling image "nginxinc/nginx-unprivileged:1.27.3"
+68s         Normal   Started             pod/grok-inference-56bdbc99b4-smkw2    Container started
+68s         Normal   Created             pod/grok-inference-56bdbc99b4-smkw2    Container created
+68s         Normal   Pulled              pod/grok-inference-56bdbc99b4-smkw2    Successfully pulled image "nginxinc/nginx-unprivileged:1.27.3" in 3.973s (3.973s including waiting). Image size: 72105943 bytes.
+17s         Normal   Killing             pod/grok-inference-56bdbc99b4-smkw2    Stopping container inference
+16s         Normal   Started             pod/grok-inference-56bdbc99b4-7bjxx    Container started
+16s         Normal   Created             pod/grok-inference-56bdbc99b4-7bjxx    Container created
+16s         Normal   SuccessfulCreate    replicaset/grok-inference-56bdbc99b4   Created pod: grok-inference-56bdbc99b4-7bjxx
+16s         Normal   Pulled              pod/grok-inference-56bdbc99b4-7bjxx    Container image "nginxinc/nginx-unprivileged:1.27.3" already present on machine and can be accessed by the pod
+16s         Normal   ScalingReplicaSet   deployment/grok-inference              Scaled up replica set grok-inference-56bdbc99b4 from 0 to 1
+2s          Normal   Killing             pod/grok-inference-56bdbc99b4-7bjxx    Stopping container inference
+2s          Normal   Created             pod/grok-inference-56bdbc99b4-ctcb4    Container created
+2s          Normal   Pulled              pod/grok-inference-56bdbc99b4-ctcb4    Container image "nginxinc/nginx-unprivileged:1.27.3" already present on machine and can be accessed by the pod
+2s          Normal   SuccessfulCreate    replicaset/grok-inference-56bdbc99b4   Created pod: grok-inference-56bdbc99b4-ctcb4
 2s          Normal   ScalingReplicaSet   deployment/grok-inference              Scaled up replica set grok-inference-56bdbc99b4 from 0 to 1
+1s          Normal   Started             pod/grok-inference-56bdbc99b4-ctcb4    Container started

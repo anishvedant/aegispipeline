@@ -2,4 +2,4 @@ NAME                             READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINE
 deployment.apps/grok-inference   1/1     1            1           2s    inference    nginxinc/nginx-unprivileged:1.27.3   app=grok-inference
 
 NAME                                  READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
-pod/grok-inference-56bdbc99b4-7bjxx   1/1     Running   0          2s    10.42.0.14   ip-172-31-22-0   <none>           <none>
+pod/grok-inference-56bdbc99b4-ctcb4   1/1     Running   0          2s    10.42.0.15   ip-172-31-22-0   <none>           <none>

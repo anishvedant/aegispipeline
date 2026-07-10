@@ -1,5 +1,5 @@
 NAME                                            READY   STATUS    RESTARTS   AGE    IP           NODE             NOMINATED NODE   READINESS GATES
-kyverno-admission-controller-ff8879d4b-gx57c    1/1     Running   0          102s   10.42.0.10   ip-172-31-22-0   <none>           <none>
-kyverno-background-controller-d5769cf76-mzjdk   1/1     Running   0          102s   10.42.0.11   ip-172-31-22-0   <none>           <none>
-kyverno-cleanup-controller-6d5b495485-vrndg     1/1     Running   0          102s   10.42.0.12   ip-172-31-22-0   <none>           <none>
-kyverno-reports-controller-54c689b866-sq7cb     1/1     Running   0          102s   10.42.0.9    ip-172-31-22-0   <none>           <none>
+kyverno-admission-controller-ff8879d4b-gx57c    1/1     Running   0          115s   10.42.0.10   ip-172-31-22-0   <none>           <none>
+kyverno-background-controller-d5769cf76-mzjdk   1/1     Running   0          115s   10.42.0.11   ip-172-31-22-0   <none>           <none>
+kyverno-cleanup-controller-6d5b495485-vrndg     1/1     Running   0          115s   10.42.0.12   ip-172-31-22-0   <none>           <none>
+kyverno-reports-controller-54c689b866-sq7cb     1/1     Running   0          115s   10.42.0.9    ip-172-31-22-0   <none>           <none>
