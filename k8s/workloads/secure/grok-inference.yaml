@@ -1,0 +1,46 @@
+# Hardened baseline workload. Passes all GrokGuard policies.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grok-inference
+  namespace: model-serving
+  labels:
+    app: grok-inference
+    team: research
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grok-inference
+  template:
+    metadata:
+      labels:
+        app: grok-inference
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inference
+          image: nginxinc/nginx-unprivileged:1.27.3
+          securityContext:
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: model-weights
+              mountPath: /weights
+              readOnly: true
+      volumes:
+        - name: model-weights
+          emptyDir: {}

@@ -1,0 +1,32 @@
+# Intentionally non-compliant. Used to demo admission denial. Do not run.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grok-inference
+  namespace: model-serving
+  labels:
+    app: grok-inference
+    team: research
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grok-inference
+  template:
+    metadata:
+      labels:
+        app: grok-inference
+    spec:
+      containers:
+        - name: inference
+          image: grok-inference:latest   # unpinned
+          securityContext:
+            privileged: true             # root on the node
+            runAsUser: 0
+          volumeMounts:
+            - name: model-weights
+              mountPath: /weights
+      volumes:
+        - name: model-weights
+          hostPath:                      # node filesystem mount
+            path: /var/lib/model-checkpoints

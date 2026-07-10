@@ -1,0 +1,110 @@
+# CI security gate: IaC scan, secrets scan, container scan.
+# Fails closed on HIGH/CRITICAL in terraform/deploy.
+
+name: security-gate
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  iac-scan:
+    name: IaC scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov against the deploy staging area
+        run: checkov -d terraform/deploy --framework terraform --external-checks-dir policies -o cli -o json --output-file-path console,reports/checkov.json
+
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: reports/checkov.json
+
+  trivy-config:
+    name: IaC scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: terraform/deploy
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          format: json
+          output: reports/trivy-config.json
+
+      - name: Upload Trivy config results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-config-results
+          path: reports/trivy-config.json
+
+  secrets-scan:
+    name: Secrets scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container-scan:
+    name: Container scan (Trivy image)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build demo image
+        run: docker build -t aegis-demo:latest -f docker/Dockerfile docker/
+
+      - name: Scan demo image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: aegis-demo:latest
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: json
+          output: reports/trivy-image.json
+
+      - name: Upload image scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-results
+          path: reports/trivy-image.json
+
+  gate-summary:
+    name: Gate verdict
+    runs-on: ubuntu-latest
+    needs: [iac-scan, trivy-config, secrets-scan, container-scan]
+    steps:
+      - name: All checks passed
+        run: echo "Security gate PASSED. Infrastructure is cleared to ship."

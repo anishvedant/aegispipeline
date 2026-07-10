@@ -1,0 +1,44 @@
+# K8s manifest gate for k8s/deploy. Same fail-closed pattern as the IaC gate.
+
+name: grokguard-k8s-gate
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["k8s/**"]
+  pull_request:
+    branches: ["main"]
+    paths: ["k8s/**"]
+
+jobs:
+  k8s-manifest-scan:
+    name: K8s manifest scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Checkov
+        run: pip install checkov
+      - name: Scan Kubernetes manifests in the staging area
+        run: checkov -d k8s/deploy --framework kubernetes -o cli -o json --output-file-path console,reports/checkov-k8s.json
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-k8s-results
+          path: reports/checkov-k8s.json
+
+  k8s-trivy-scan:
+    name: K8s manifest scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy config scan on manifests
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: k8s/deploy
+          severity: HIGH,CRITICAL
+          exit-code: "1"

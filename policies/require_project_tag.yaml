@@ -1,0 +1,18 @@
+# Custom check: AWS resources must carry a Project tag.
+# Loaded via --external-checks-dir policies
+
+metadata:
+  id: "CKV2_AEGIS_1"
+  name: "Ensure AWS resources carry a Project tag for ownership tracking"
+  category: "GENERAL_SECURITY"
+  severity: "MEDIUM"
+
+definition:
+  and:
+    - cond_type: attribute
+      resource_types:
+        - aws_s3_bucket
+        - aws_security_group
+        - aws_iam_policy
+      attribute: tags.Project
+      operator: exists

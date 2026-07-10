@@ -1,0 +1,108 @@
+# GrokGuard admission policies. Enforced by Kyverno at pod admission.
+---
+# blocks hostPath volumes
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gg-block-hostpath
+  annotations:
+    policies.kyverno.io/description: >-
+      Blocks hostPath volumes. On GPU training nodes a hostPath
+      mount is a direct model-weight exfiltration vector.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: block-hostpath-volumes
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: >-
+          GrokGuard: hostPath volumes are blocked. Model checkpoints
+          and node filesystems must not be mounted into workloads.
+        pattern:
+          spec:
+            =(volumes):
+              - X(hostPath): "null"
+---
+# baseline pod hardening
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gg-pod-hardening
+  annotations:
+    policies.kyverno.io/description: >-
+      Enforces baseline pod hardening: no privileged mode, no
+      privilege escalation, containers must run as non-root.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: deny-privileged
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: "GrokGuard: privileged containers are blocked."
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+    - name: require-non-root
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: "GrokGuard: containers must set runAsNonRoot: true."
+        anyPattern:
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+          - spec:
+              containers:
+                - securityContext:
+                    runAsNonRoot: true
+---
+# supply chain and resource limits
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gg-supply-chain-and-limits
+  annotations:
+    policies.kyverno.io/description: >-
+      Requires pinned image tags and CPU/memory limits on every
+      container.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: block-latest-tag
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: "GrokGuard: image tags must be pinned, ':latest' is blocked."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+    - name: require-resource-limits
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      validate:
+        message: "GrokGuard: every container must declare CPU and memory limits."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
