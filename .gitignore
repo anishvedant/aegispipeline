@@ -1,11 +1,31 @@
-# Terraform
+# Terraform working directories and state
 **/.terraform/
 *.tfstate
-*.tfstate.backup
+*.tfstate.*
 *.tfvars
-.terraform.lock.hcl
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
 
-# Generated reports
+# Keep Terraform dependency lock files in version control
+# .terraform.lock.hcl is intentionally NOT ignored.
+
+# Kubernetes credentials and local connection files
+**/kubeconfig
+**/k3s.yaml
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.ovpn
+
+# Generated top-level reports (selected evidence files already tracked remain tracked)
 reports/*.json
 reports/*.md
 reports/*.txt
@@ -14,7 +34,11 @@ reports/*.txt
 # Python
 __pycache__/
 *.pyc
+.venv/
+venv/
 
-# Local
-.env
+# Local notes and editor files
 notes/
+.vscode/
+.idea/
+.DS_Store

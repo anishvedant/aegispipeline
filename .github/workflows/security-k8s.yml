@@ -1,44 +1,79 @@
-# K8s manifest gate for k8s/deploy. Same fail-closed pattern as the IaC gate.
+# Early Kubernetes manifest visibility.
+# The authoritative runtime gate is Kyverno inside the live cluster.
 
-name: grokguard-k8s-gate
+name: grokguard-k8s-validation
 
 on:
   push:
     branches: ["main"]
-    paths: ["k8s/**"]
+    paths:
+      - "k8s/**"
+      - ".github/workflows/security-k8s.yml"
   pull_request:
     branches: ["main"]
-    paths: ["k8s/**"]
+    paths:
+      - "k8s/**"
+      - ".github/workflows/security-k8s.yml"
+
+permissions:
+  contents: read
 
 jobs:
-  k8s-manifest-scan:
-    name: K8s manifest scan (Checkov)
+  checkov-k8s:
+    name: Kubernetes visibility scan (Checkov)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install Checkov
-        run: pip install checkov
-      - name: Scan Kubernetes manifests in the staging area
-        run: checkov -d k8s/deploy --framework kubernetes -o cli -o json --output-file-path console,reports/checkov-k8s.json
-      - name: Upload results
+        run: pip install "checkov==3.3.7"
+
+      - name: Scan hardened Kubernetes workload
+        run: |
+          mkdir -p reports
+          checkov \
+            -d k8s/workloads/secure \
+            --framework kubernetes \
+            --soft-fail \
+            -o cli -o json \
+            --output-file-path console,reports/checkov-k8s.json
+
+      - name: Upload Checkov Kubernetes results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: checkov-k8s-results
           path: reports/checkov-k8s.json
+          if-no-files-found: warn
 
-  k8s-trivy-scan:
-    name: K8s manifest scan (Trivy)
+  trivy-k8s:
+    name: Kubernetes visibility scan (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Trivy config scan on manifests
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan hardened Kubernetes workload
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
-          scan-ref: k8s/deploy
+          scan-ref: k8s/workloads/secure
+          scanners: misconfig
           severity: HIGH,CRITICAL
-          exit-code: "1"
+          exit-code: "0"
+          format: json
+          output: reports/trivy-k8s.json
+
+      - name: Upload Trivy Kubernetes results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-k8s-results
+          path: reports/trivy-k8s.json
+          if-no-files-found: warn

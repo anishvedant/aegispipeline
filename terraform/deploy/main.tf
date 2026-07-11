@@ -90,6 +90,11 @@ resource "aws_iam_policy" "researcher_access" {
   name        = "aegis-demo-researcher-policy"
   description = "Read access to the model artifacts bucket"
 
+  tags = {
+    Project = "aegispipeline"
+    Env     = "demo"
+  }
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
