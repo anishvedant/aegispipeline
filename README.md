@@ -19,6 +19,7 @@ AegisPipeline turns those risks into automated controls:
 5. Prioritize findings using Grok when configured, or a deterministic offline heuristic.
 6. Enforce Kubernetes workload policy with Kyverno.
 7. Prove that an insecure workload is blocked and a hardened workload is admitted.
+8. Visualize aggregated security posture through Prometheus and Grafana.
 
 ## Architecture
 
@@ -53,8 +54,13 @@ Developer push or pull request
               v
   aggregate.py -> summary.json and SUMMARY.md
               |
-              v
-  ai_triage.py -> AI_REPORT.md
+              +-------------------------------+
+              |                               |
+              v                               v
+  ai_triage.py -> AI_REPORT.md      Prometheus exporter
+                                              |
+                                              v
+                                      Prometheus + Grafana
               |
               v
 +----------------------------------------------------------+
@@ -107,7 +113,7 @@ The intentionally insecure workload is denied. The hardened workload is admitted
 | Admission control | Kyverno with three GrokGuard ClusterPolicies |
 | Workload test | Intentionally insecure model-serving deployment denied, hardened deployment admitted |
 | Reporting | Normalized JSON and Markdown summaries, risk-ranked triage report, Kubernetes enforcement evidence |
-| Optional monitoring | Prometheus exporter and Grafana/Prometheus Docker Compose stack |
+| Local security monitoring | Prometheus exporter, Prometheus, and Grafana dashboard validated on Kali; visualizes aggregated findings by severity and scanner source |
 | Multi-cloud fixtures | Secure and insecure AWS and Azure Terraform examples, Azure was not deployed during the recorded lab run |
 
 ## Repository layout
@@ -155,6 +161,8 @@ terraform/
   azure/insecure/          Deliberately insecure Azure fixture
   azure/secure/            Hardened Azure fixture
   deploy/                  Controlled Terraform deployment staging area
+
+Grafana Dashboard.png      Validated local security-posture dashboard screenshot
 ```
 
 ## Core components
@@ -226,7 +234,23 @@ This is preventive control, not only detection. The rejected workload never reac
 - `grokguard_findings_by_source{source}`
 - `grokguard_last_scan_timestamp`
 
-Prometheus can scrape the exporter on port `9105`, and Grafana can visualize findings alongside operational metrics. This monitoring stack is an optional extension and was not required to prove the core AWS and Kubernetes controls.
+The local monitoring stack was validated on the Kali VM. The exporter exposes metrics on port `9105`, Prometheus scrapes them every 15 seconds, and Grafana visualizes the findings by severity and scanner source.
+
+<p align="center">
+  <img src="Grafana%20Dashboard.png" alt="AegisPipeline Grafana security posture dashboard" width="100%">
+</p>
+
+<p align="center"><em>Validated AegisPipeline Grafana dashboard showing aggregated findings by severity and scanner source.</em></p>
+
+Local lab endpoints:
+
+- Grafana: `http://localhost:3000`
+- Prometheus: `http://localhost:9090`
+- Exporter metrics: `http://localhost:9105/metrics`
+
+The dashboard is report-based security posture monitoring. It reads the saved `reports/summary.json` file, so it does not require the AWS K3s cluster to remain online. The Kali VM must remain running while the exporter, Prometheus, and Grafana are being viewed.
+
+The included Grafana password is intended only for this local lab. It must be changed before exposing Grafana beyond the VM.
 
 ## GitHub Actions behavior
 
@@ -266,6 +290,7 @@ Use these files to verify the completed run:
 - [`reports/k8s/kyverno-pods.txt`](reports/k8s/kyverno-pods.txt), Kyverno controllers running
 - [`reports/k8s/nodes.txt`](reports/k8s/nodes.txt), live K3s node evidence
 - [`reports/k8s/events.txt`](reports/k8s/events.txt), namespace event history
+- [`Grafana Dashboard.png`](Grafana%20Dashboard.png), validated local Grafana monitoring dashboard
 
 ## Demo path
 
@@ -276,7 +301,8 @@ A short interview demonstration should follow this order:
 3. Open `reports/k8s/clusterpolicies.txt` and show all GrokGuard policies ready.
 4. Open `reports/SUMMARY.md` and explain how multiple scanner formats were normalized.
 5. Open `reports/AI_REPORT.md` and explain the risk-prioritization layer.
-6. Optionally show `.github/workflows/security.yml` to explain automated pre-deployment checks.
+6. Show the Grafana dashboard screenshot under the Monitoring section and explain that the saved report was exposed as Prometheus metrics.
+7. Optionally show `.github/workflows/security.yml` to explain automated pre-deployment checks.
 
 ## Quick start
 
@@ -303,6 +329,7 @@ Do not apply the insecure fixture. Only apply the controlled hardened staging co
 - The Grok integration has an offline fallback, so report generation does not depend on an external API.
 - Runtime admission enforcement protects against manual `kubectl` changes, compromised automation, and emergency changes that bypass CI.
 - The project stores evidence so control effectiveness can be reviewed without rebuilding the lab.
+- The monitoring layer reuses the normalized findings model instead of introducing another disconnected reporting format.
 
 ## Business value
 
@@ -317,8 +344,9 @@ The control model can reduce:
 - Kubernetes node risk from privileged or host-mounted workloads
 - Reliability and cost risk from workloads with no CPU or memory limits
 - Audit effort by retaining repeatable evidence
+- Time spent manually combining scanner outputs into security-status reports
 
-No fixed financial saving is claimed because the lab did not measure a production environment. The value comes from earlier feedback, repeatable enforcement, reduced incident likelihood, and more efficient use of security engineering time.
+No fixed financial saving is claimed because the lab did not measure a production environment. The value comes from earlier feedback, repeatable enforcement, reduced incident likelihood, more efficient use of security engineering time, and dashboard visibility into aggregated security posture.
 
 ## Known limitations
 
@@ -333,7 +361,7 @@ Current limitations include:
 - Prowler aggregation can be improved with stronger deduplication and richer status parsing.
 - The Docker API is a demonstration service, not a production triage platform.
 - Trivy findings are report-only in the portfolio workflow until a stable vulnerability baseline and exception process are established.
-- The monitoring folder provides the components for Prometheus and Grafana, but no committed dashboard is included yet.
+- Monitoring visualizes saved report data, not live AWS events, Kubernetes runtime telemetry, or continuous Prowler scans.
 - Azure fixtures are implemented but were not deployed during the recorded run.
 
 ## Production roadmap
@@ -352,7 +380,7 @@ A production implementation would add:
 - Falco or an equivalent runtime detection layer
 - Security Hub, Jira, Slack, or incident-management integrations
 - Improved Prowler normalization, deduplication, asset ownership, and remediation tracking
-- Time-series Grafana dashboards and alerting for security metrics
+- Live AWS and Kubernetes telemetry, historical retention, and Grafana alerting
 
 ## Safe cleanup
 
