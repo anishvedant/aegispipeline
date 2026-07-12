@@ -40,38 +40,72 @@ Developer push or pull request
               |
               v
 +----------------------------------------------------------+
-| AWS deployment                                           |
+| AWS account                                              |
 |                                                          |
-| S3 model-artifact bucket                                 |
-| Public-access block, encryption, versioning              |
-| Restricted security group                                |
-| Least-privilege IAM policy                               |
-+----------------------------------------------------------+
-              |
-              v
-       Prowler live AWS posture scan
-              |
-              v
-  aggregate.py -> summary.json and SUMMARY.md
-              |
-              +-------------------------------+
-              |                               |
-              v                               v
-  ai_triage.py -> AI_REPORT.md      Prometheus exporter
-                                              |
-                                              v
-                                      Prometheus + Grafana
-              |
-              v
-+----------------------------------------------------------+
-| AWS EC2 single-node K3s cluster                          |
+| Secure baseline                                          |
+|   S3 model-artifact bucket                               |
+|   Public-access block, encryption, versioning            |
+|   Restricted security group                              |
+|   Least-privilege IAM policy                             |
 |                                                          |
-| Kyverno admission controller                            |
-| GrokGuard ClusterPolicies                               |
-| Insecure workload denied                                |
-| Hardened workload admitted                              |
+| Kubernetes infrastructure                                |
+|   Elastic IP                                             |
+|   EC2 instance                                           |
+|   Encrypted GP3 root volume                              |
+|   IMDSv2 required                                        |
+|   SSH and Kubernetes API restricted to admin /32         |
 +----------------------------------------------------------+
+              |
+              +------------------------------+
+              |                              |
+              v                              v
+   Prowler live AWS scan          EC2 single-node K3s cluster
+              |                              |
+              v                              v
+ aggregate.py -> summary.json       Kubernetes control plane
+ and SUMMARY.md                     |-- API Server
+              |                     |-- Controller Manager
+              |                     |-- Scheduler
+              |                     |-- Embedded datastore
+              |                     |-- kubelet
+              |                     `-- containerd
+              |
+              +------------------------------+
+              |                              |
+              v                              v
+ ai_triage.py -> AI_REPORT.md          Kyverno inside K3s
+                                         |-- Admission Controller
+ Prometheus exporter                     |-- Background Controller
+              |                          |-- Cleanup Controller
+              v                          `-- Reports Controller
+ Prometheus + Grafana                           |
+                                                 v
+                                      GrokGuard ClusterPolicies
+                                         |-- Block hostPath
+                                         |-- Block privileged execution
+                                         |-- Require non-root execution
+                                         |-- Block :latest image tags
+                                         `-- Require CPU and memory limits
+                                                 |
+                                                 v
+                                      Namespace: model-serving
+                                                 |
+                              +------------------+------------------+
+                              |                                     |
+                              v                                     v
+                    Insecure Deployment                    Hardened Deployment
+                    denied by Kyverno                      admitted by Kyverno
+                                                                    |
+                                                                    v
+                                                         NGINX unprivileged Pod
+                                                         private inside cluster
+                                                                    |
+                                                                    v
+                                                  Local-only kubectl port-forward
+                                                    127.0.0.1:8080 -> Pod:8080
 ```
+
+The NGINX Pod is not exposed through a public `NodePort`, `LoadBalancer`, Ingress, or additional AWS inbound rule. The local-only port-forward shown above is used only when a temporary browser demonstration is required.
 
 ## Three security layers
 
@@ -111,7 +145,7 @@ The intentionally insecure workload is denied. The hardened workload is admitted
 | AWS posture | Prowler account scan exported as JSON-OCSF and compliance CSV files |
 | Kubernetes infrastructure | Single-node K3s control plane on EC2, Elastic IP, encrypted GP3 root volume, IMDSv2, SSH and Kubernetes API restricted to the administrator CIDR |
 | Admission control | Kyverno with three GrokGuard ClusterPolicies |
-| Workload test | Intentionally insecure model-serving deployment denied, hardened deployment admitted |
+| Workload test | Intentionally insecure model-serving deployment denied, hardened NGINX deployment admitted and kept private inside the cluster |
 | Reporting | Normalized JSON and Markdown summaries, risk-ranked triage report, Kubernetes enforcement evidence |
 | Local security monitoring | Prometheus exporter, Prometheus, and Grafana dashboard validated on Kali; visualizes aggregated findings by severity and scanner source |
 | Multi-cloud fixtures | Secure and insecure AWS and Azure Terraform examples, Azure was not deployed during the recorded lab run |
@@ -216,7 +250,25 @@ The deliberately insecure Dockerfile exists only as a scan fixture. It uses an o
 
 The K3s cluster runs on AWS EC2. Kyverno evaluates incoming Pods and generated Pod templates from Deployments.
 
-The three ClusterPolicies are:
+A Kubernetes cluster can contain nodes, Pods, Deployments, Services, namespaces, storage, configuration, secrets, and policy controls. This lab intentionally keeps the runtime small: one EC2 node, one K3s control plane, Kyverno, the `model-serving` namespace, and one hardened NGINX workload.
+
+The EC2 instance hosts these K3s components:
+
+- **Kubernetes API Server**, receives `kubectl` and controller requests
+- **Controller Manager**, reconciles desired state with actual state
+- **Scheduler**, selects a node for each Pod
+- **Embedded datastore**, stores cluster configuration and state
+- **kubelet**, manages Pods on the node
+- **containerd**, runs the containers
+
+Kyverno installs four controllers:
+
+- **Admission Controller**, allows or denies new resources
+- **Background Controller**, checks existing resources against policies
+- **Cleanup Controller**, handles cleanup policies
+- **Reports Controller**, creates policy reports
+
+The three GrokGuard ClusterPolicies are:
 
 | Policy | Purpose |
 |---|---|
@@ -225,6 +277,35 @@ The three ClusterPolicies are:
 | `gg-supply-chain-and-limits` | Blocks `:latest` images and requires CPU and memory limits |
 
 This is preventive control, not only detection. The rejected workload never reaches a running state.
+
+### Safe temporary access to the NGINX Pod
+
+The hardened NGINX Pod is deliberately private. The safest temporary access method is `kubectl port-forward` bound only to the Kali loopback interface:
+
+```bash
+cd ~/Desktop/projects/aegispipeline
+export KUBECONFIG=~/Desktop/projects/aegispipeline/terraform/aws/k3s-cluster/kubeconfig
+kubectl -n model-serving port-forward --address 127.0.0.1 deployment/grok-inference 8080:8080
+```
+
+Keep that terminal open, then open this address in a browser running inside the Kali VM:
+
+```text
+http://127.0.0.1:8080
+```
+
+Press `Ctrl+C` in the terminal to stop access.
+
+This method:
+
+- does not create a public Kubernetes Service
+- does not create a `NodePort` or `LoadBalancer`
+- does not change the AWS security group
+- does not open an additional internet-facing port
+- accepts connections only from the local Kali VM
+- ends immediately when the command is stopped
+
+Do not use `--address 0.0.0.0` for this lab, and do not open port `8080` or a Kubernetes `NodePort` to `0.0.0.0/0`.
 
 ### Monitoring
 
@@ -299,10 +380,11 @@ A short interview demonstration should follow this order:
 1. Open `reports/k8s/insecure-workload-blocked.txt` and show why the unsafe deployment was denied.
 2. Open `reports/k8s/model-serving.txt` and show the hardened workload at `1/1 Running`.
 3. Open `reports/k8s/clusterpolicies.txt` and show all GrokGuard policies ready.
-4. Open `reports/SUMMARY.md` and explain how multiple scanner formats were normalized.
-5. Open `reports/AI_REPORT.md` and explain the risk-prioritization layer.
-6. Show the Grafana dashboard screenshot under the Monitoring section and explain that the saved report was exposed as Prometheus metrics.
-7. Optionally show `.github/workflows/security.yml` to explain automated pre-deployment checks.
+4. Optionally run the local-only NGINX port-forward and open `http://127.0.0.1:8080` inside Kali.
+5. Open `reports/SUMMARY.md` and explain how multiple scanner formats were normalized.
+6. Open `reports/AI_REPORT.md` and explain the risk-prioritization layer.
+7. Show the Grafana dashboard screenshot under the Monitoring section and explain that the saved report was exposed as Prometheus metrics.
+8. Optionally show `.github/workflows/security.yml` to explain automated pre-deployment checks.
 
 ## Quick start
 
@@ -330,6 +412,7 @@ Do not apply the insecure fixture. Only apply the controlled hardened staging co
 - Runtime admission enforcement protects against manual `kubectl` changes, compromised automation, and emergency changes that bypass CI.
 - The project stores evidence so control effectiveness can be reviewed without rebuilding the lab.
 - The monitoring layer reuses the normalized findings model instead of introducing another disconnected reporting format.
+- The NGINX workload remains private by default and is demonstrated through a temporary loopback-only port-forward.
 
 ## Business value
 
@@ -363,6 +446,7 @@ Current limitations include:
 - Trivy findings are report-only in the portfolio workflow until a stable vulnerability baseline and exception process are established.
 - Monitoring visualizes saved report data, not live AWS events, Kubernetes runtime telemetry, or continuous Prowler scans.
 - Azure fixtures are implemented but were not deployed during the recorded run.
+- The NGINX workload has no public Service or production ingress path; local port-forwarding is used only for temporary demonstration.
 
 ## Production roadmap
 
@@ -381,6 +465,7 @@ A production implementation would add:
 - Security Hub, Jira, Slack, or incident-management integrations
 - Improved Prowler normalization, deduplication, asset ownership, and remediation tracking
 - Live AWS and Kubernetes telemetry, historical retention, and Grafana alerting
+- A controlled private ingress or authenticated load balancer if the workload must become externally reachable
 
 ## Safe cleanup
 
