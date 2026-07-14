@@ -42,3 +42,7 @@ notes/
 .vscode/
 .idea/
 .DS_Store
+
+# Exporter runtime files
+monitoring/exporter.log
+monitoring/exporter.pid
