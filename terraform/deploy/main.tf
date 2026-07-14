@@ -1,4 +1,4 @@
-# Intentionally misconfigured. Test fixtures for the CI gate. Do not deploy.
+# Hardened baseline. Safe to deploy on free tier.
 
 terraform {
   required_providers {
@@ -13,9 +13,12 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# no encryption, no versioning
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 resource "aws_s3_bucket" "model_artifacts" {
-  bucket = "aegis-demo-model-artifacts-insecure"
+  bucket = "aegis-demo-model-artifacts-${random_id.suffix.hex}"
 
   tags = {
     Project = "aegispipeline"
@@ -23,53 +26,88 @@ resource "aws_s3_bucket" "model_artifacts" {
   }
 }
 
-# public access left open
+resource "aws_s3_bucket_server_side_encryption_configuration" "model_artifacts" {
+  bucket = aws_s3_bucket.model_artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "model_artifacts" {
+  bucket = aws_s3_bucket.model_artifacts.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "model_artifacts" {
   bucket = aws_s3_bucket.model_artifacts.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
-# ssh open to 0.0.0.0/0
+variable "admin_cidr" {
+  description = "CIDR allowed to reach SSH, e.g. x.x.x.x/32"
+  type        = string
+  default     = "203.0.113.10/32"
+}
+
 resource "aws_security_group" "training_nodes" {
-  name        = "aegis-demo-training-sg-insecure"
-  description = "Security group for training nodes"
+  name        = "aegis-demo-training-sg"
+  description = "Training nodes, SSH restricted to admin CIDR"
 
   ingress {
+    description = "SSH, admin only"
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr]
+  }
+
+  egress {
+    description = "Outbound HTTPS"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = {
     Project = "aegispipeline"
     Env     = "demo"
   }
 }
 
-# wildcard action + wildcard resource
+# least privilege: read-only, scoped to one bucket
 resource "aws_iam_policy" "researcher_access" {
-  name        = "aegis-demo-researcher-policy-insecure"
-  description = "Access policy for research team"
+  name        = "aegis-demo-researcher-policy"
+  description = "Read access to the model artifacts bucket"
+
+  tags = {
+    Project = "aegispipeline"
+    Env     = "demo"
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = "*"
-        Resource = "*"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.model_artifacts.arn,
+          "${aws_s3_bucket.model_artifacts.arn}/*"
+        ]
       }
     ]
   })
